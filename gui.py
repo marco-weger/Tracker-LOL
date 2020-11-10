@@ -1,3 +1,6 @@
+# import pipimport
+# pipimport.install()
+
 from logging import exception
 from tkinter import *
 import tkinter
@@ -60,8 +63,11 @@ def main(x,y):
   top.mainloop()
 
 try:
-  th_main = _thread.start_new_thread( main, ("main",1) )
-  print(th_main)
+  # CANT USE THIS TYPE OF THREAD ON MAC
+  # th_main = _thread.start_new_thread( main, ("main",1) )
+  # print(th_main)
+
+  main(1,2)
 
   with keyboard.Listener(on_press=on_press, on_release=on_release) as listener:  # Create an instance of Listener
     listener.join()  # Join the listener thread to the main thread to keep waiting for keys
