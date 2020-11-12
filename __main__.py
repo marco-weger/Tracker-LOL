@@ -3,6 +3,7 @@
 import tkinter
 from tkinter import *
 import sys
+import os
 import __listener__
 
 # TODO
@@ -47,7 +48,61 @@ class window:
     print(button) #debug message
     # self.label.config(text = selection)
 
+def func(event):
+  # TODO... Connection test
+  key = sv.get()
+  text_file = open(os.path.join(os.path.dirname(__file__), 'key.config'), "w")
+  text_file.write(key)
+  text_file.close()
+  entry.destroy()
+
+def center(root):
+  # Gets the requested values of the height and widht.
+  windowWidth = root.winfo_reqwidth()
+  windowHeight = root.winfo_reqheight()
+  # Gets both half the screen width/height and window width/height
+  positionRight = int(root.winfo_screenwidth()/2 - windowWidth/2)
+  positionDown = int(root.winfo_screenheight()/2 - windowHeight/2)
+  # Positions the window in the center of the page.
+  root.geometry("+{}+{}".format(positionRight, positionDown))
+
 if __name__ == "__main__":
+  # key management
+  try:
+    fileObject = open(os.path.join(os.path.dirname(__file__), 'key.config'), "r")
+    key = fileObject.read()
+  except:
+    key = ''
+
+  entry = Tk()
+  
+  entry.resizable(False, False)
+  entry.attributes('-topmost', True)
+  entry.title("")
+  entry.iconbitmap(default=os.path.join(os.path.dirname(__file__), 'transparent.ico'))
+
+  l = Label(entry, text = "API Key")
+  l.pack(side = TOP, padx = 10, pady = 10)
+
+  sv = StringVar()
+  e = Entry(entry, bd = 5, textvariable = sv)
+  e.bind('<Return>', func)
+  e.pack(side = BOTTOM, padx = 10, pady = 10)
+  e.delete(0,END)
+  e.insert(0,key)
+  # TODO select all
+
+  # TODO onClose
+
+  # TODO border
+  
+  entry.overrideredirect(True)
+  center(entry)
+
+  entry.mainloop()
+
+  # start main
+
   top = tkinter.Tk()
   heroesSize = int(top.winfo_screenheight()/20)
 
