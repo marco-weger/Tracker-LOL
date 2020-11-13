@@ -1,10 +1,20 @@
 # import pipimport
 # pipimport.install()
+# pip3 install riotwatcher
+# pip install pandas
+
 import tkinter
 from tkinter import *
 import sys
 import os
 import __listener__
+import __lol__
+from __lol__ import Regions
+# from riot_observer import RiotObserver
+# from riot_observer import constants as riot_cost
+# from riot_observer import LoLException
+# from riot_observer.observer import error_404, error_429
+import time
 
 # TODO
 # - every second i call API
@@ -114,6 +124,29 @@ if __name__ == "__main__":
   top.overrideredirect(1) #Remove border
   top.resizable(False, False)
   top.attributes('-topmost', True)
+
+  ###########
+
+  TMP_NAME = 'Throw'
+
+  # TODO prevedere errore inserimento nome
+  watcher = __lol__.RiotObserver(key,Regions.EUROPE_WEST)
+  me = watcher.get_summoner_by_name(summoner_name=TMP_NAME)
+  time.sleep(1)
+  game = watcher.get_current_game(me['id'])
+
+  try:
+    game['participants']
+  except:
+    print("Not in a game...")
+  else:
+    myteam = [x for x in game['participants'] if x['summonerName'] == TMP_NAME][0]['teamId']
+    challengers = [x for x in game['participants'] if x['teamId'] != myteam]
+    for c in challengers: # x['championId'],x['spell1Id'],x['spell2Id']}
+      print(watcher.get_champion_by_id(c['championId']))
+
+  ## TODO maybe image from data dragon
+
   while True:
     # window update
     top.update_idletasks()
