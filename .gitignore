@@ -76,6 +76,10 @@ target/
 
 # Jupyter Notebook
 .ipynb_checkpoints
+# congih
+key.config
+user.config
+
 
 # IPython
 profile_default/
