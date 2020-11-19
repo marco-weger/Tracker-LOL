@@ -14,6 +14,7 @@ from __lol__ import Regions
 import PIL
 from PIL import ImageTk, Image
 import time
+import threading
 
 # TODO
 # - every 2 or 3 second i call API
@@ -28,19 +29,19 @@ class window:
     self.buttons = []
     # image = "img.png",
     # buttons for heroes and abilities
-    self.buttons.append(tkinter.Button(top, bg = "red", text = "H0", command = lambda: self.click("H0")))
+    self.buttons.append(tkinter.Label(top, bg = "red", text = "H0", borderwidth=1, relief="solid"))
     self.buttons.append(tkinter.Button(top, text = "P0_H0", command = lambda: self.click("P0_H0")))
     self.buttons.append(tkinter.Button(top, text = "P1_H0", command = lambda: self.click("P1_H0")))
-    self.buttons.append(tkinter.Button(top, bg = "red", text = "H1", command = lambda: self.click("H1")))
+    self.buttons.append(tkinter.Label(top, bg = "red", text = "H1", borderwidth=0.5, relief="solid"))
     self.buttons.append(tkinter.Button(top, text = "P0_H1", command = lambda: self.click("P0_H1")))
     self.buttons.append(tkinter.Button(top, text = "P1_H1", command = lambda: self.click("P1_H1")))
-    self.buttons.append(tkinter.Button(top, bg = "red", text = "H2", command = lambda: self.click("H2")))
+    self.buttons.append(tkinter.Label(top, bg = "red", text = "H2", borderwidth=0.3, relief="solid"))
     self.buttons.append(tkinter.Button(top, text = "P0_H2", command = lambda: self.click("P0_H2")))
     self.buttons.append(tkinter.Button(top, text = "P1_H2", command = lambda: self.click("P1_H2")))
-    self.buttons.append(tkinter.Button(top, bg = "red", text = "H3", command = lambda: self.click("H3")))
+    self.buttons.append(tkinter.Label(top, bg = "red", text = "H3", borderwidth=0.1, relief="solid"))
     self.buttons.append(tkinter.Button(top, text = "P0_H3", command = lambda: self.click("P0_H3")))
     self.buttons.append(tkinter.Button(top, text = "P1_H3", command = lambda: self.click("P1_H3")))
-    self.buttons.append(tkinter.Button(top, bg = "red", text = "H4", command = lambda: self.click("H4")))
+    self.buttons.append(tkinter.Label(top, bg = "red", text = "H4", borderwidth=0.05, relief="solid"))
     self.buttons.append(tkinter.Button(top, text = "P0_H4", command = lambda: self.click("P0_H4")))
     self.buttons.append(tkinter.Button(top, text = "P1_H4", command = lambda: self.click("P1_H4")))
 
@@ -102,7 +103,7 @@ def showConfigWindow():
     justify = 'center'
   )
   key_e.config({"background": "#bbb"})
-  key_e.bind('<Return>', func)
+  key_e.bind('<Return>', saveConfig)
   key_e.place(x=200, y=75, anchor="center")
   key_e.delete(0,END)
   key_e.insert(0,key)
@@ -117,7 +118,7 @@ def showConfigWindow():
     justify = 'center'
   )
   user_e.config({"background": "#bbb"})
-  user_e.bind('<Return>', func)
+  user_e.bind('<Return>', saveConfig)
   user_e.place(x=200, y=150, anchor="center")
   user_e.delete(0,END)
   user_e.insert(0,user)  
@@ -132,7 +133,7 @@ def showConfigWindow():
 
   entry.mainloop()
 
-def func(event):
+def saveConfig(event):
   global key
   global user
   global entry
@@ -159,6 +160,32 @@ def center(root):
   # Positions the window in the center of the page.
   root.geometry("+{}+{}".format(positionRight, positionDown))
 
+def th_scheduleCall():
+  global update
+  global th_call_isAlive
+  while th_call_isAlive:
+    if update == False:
+      time.sleep(2)
+      update = True
+
+def th_gameLockup():
+  global update
+  global me
+
+  game = watcher.get_current_game(me['id'])
+
+  try:
+    game['participants']
+  except:
+    print("Not in a game...")
+  else:
+    myteam = [x for x in game['participants'] if x['summonerName'] == TMP_NAME][0]['teamId']
+    challengers = [x for x in game['participants'] if x['teamId'] != myteam]
+    for c in challengers: # x['championId'],x['spell1Id'],x['spell2Id']}
+      print(watcher.get_champion_by_id(c['championId'])) # not counted in api call rate
+
+  update = False
+
 if __name__ == "__main__":
   # key management
   try:
@@ -175,10 +202,11 @@ if __name__ == "__main__":
 
   showConfigWindow()
 
-  # TODO prevedere errore inserimento nome
   watcher = __lol__.RiotObserver(key,Regions.EUROPE_WEST)
+  global me
   try:
     me = watcher.get_summoner_by_name(summoner_name=user) # This requeset is used as a 'login', is it fails i kill the process because username or key is broken
+    print(me)
     if 'status' in me:
       if 'status_code' in me['status']:
         if int(me['status']['status_code']) >= 300:
@@ -190,8 +218,8 @@ if __name__ == "__main__":
     top = tkinter.Tk()
     heroesSize = int(top.winfo_screenheight()/20)
 
-    th = __listener__.listener()
-    th.start()
+    th_listener = __listener__.listener()
+    th_listener.start()
 
     win = window(top)
     top.geometry(str(int(heroesSize*1.5))+"x"+str(heroesSize*5))
@@ -199,24 +227,23 @@ if __name__ == "__main__":
     top.resizable(False, False)
     top.attributes('-topmost', True)
 
-    ##############################################
-    # TODO FROM HERE MUST START WITH A TIMER
-    time.sleep(1)
-    game = watcher.get_current_game(me['id'])
+    # Schedule
+    global update
+    global th_call_isAlive
+    update = True
+    th_call_isAlive = True
 
-    try:
-      game['participants']
-    except:
-      print("Not in a game...")
-    else:
-      myteam = [x for x in game['participants'] if x['summonerName'] == TMP_NAME][0]['teamId']
-      challengers = [x for x in game['participants'] if x['teamId'] != myteam]
-      for c in challengers: # x['championId'],x['spell1Id'],x['spell2Id']}
-        print(watcher.get_champion_by_id(c['championId']))
-
-    # TODO maybe image from data dragon
+    th_call = threading.Thread(target=th_scheduleCall)
+    th_call.start()
+    th_lockup = threading.Thread(target=th_gameLockup)
 
     while True:
+      if update and not th_lockup.is_alive():
+        th_lockup = threading.Thread(target=th_gameLockup)
+        th_lockup.start()
+
+      # TODO maybe image from data dragon
+
       # window update
       top.update_idletasks()
       top.update()
@@ -225,11 +252,16 @@ if __name__ == "__main__":
         top.deiconify()
       else:
         top.withdraw()
-      if not th.isAlive:
+      if not th_listener.isAlive:
         break    
-    # END TIMER
-    ##############################################
 
+  th_lockup.join()
+  th_call_isAlive = False
+  th_call.join()
   top.destroy()
   top.quit()
-  sys.exit()
+  try:
+    sys.exit()
+  except Exception:
+    print("DIOCANE")
+    print(Exception)
