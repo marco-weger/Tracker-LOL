@@ -21,7 +21,7 @@ import requests
 from io import BytesIO
 import __color__
 
-heroesSize = 55
+heroesSize = 20
 
 def showConfigWindow():
   global key_sv
@@ -221,7 +221,7 @@ if __name__ == "__main__":
     # start main
 
     top = Tk()
-    heroesSize = int(top.winfo_screenheight()/20)
+    heroesSize = int(top.winfo_screenheight()/heroesSize)
 
     th_listener = __listener__.listener()
     th_listener.start()
