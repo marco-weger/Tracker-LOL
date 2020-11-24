@@ -6,4 +6,6 @@ pip install pandas
 pip install Pillow
 pip install scipy
 pip install webcolors
+pip uninstall numpy
+pip install numpy==1.19.3
 ```
