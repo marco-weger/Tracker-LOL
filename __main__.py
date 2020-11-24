@@ -3,6 +3,8 @@
 # pip3 install riotwatcher
 # pip install pandas
 # pip install Pillow
+# pip install scipy
+# pip install webcolors
 
 import tkinter
 from tkinter import *
@@ -15,48 +17,11 @@ import PIL
 from PIL import ImageTk, Image
 import time
 import threading
-
-# TODO
-# - every 2 or 3 second i call API
-# - timer
+import requests
+from io import BytesIO
+import __color__
 
 heroesSize = 55
-heroes = ['H0','H1','H2','H3','H4']
-
-class window:
-
-  def __init__(self, root):
-    self.buttons = []
-    # image = "img.png",
-    # buttons for heroes and abilities
-    self.buttons.append(tkinter.Label(top, bg = "red", text = "H0", borderwidth=1, relief="solid"))
-    self.buttons.append(tkinter.Button(top, text = "P0_H0", command = lambda: self.click("P0_H0")))
-    self.buttons.append(tkinter.Button(top, text = "P1_H0", command = lambda: self.click("P1_H0")))
-    self.buttons.append(tkinter.Label(top, bg = "red", text = "H1", borderwidth=0.5, relief="solid"))
-    self.buttons.append(tkinter.Button(top, text = "P0_H1", command = lambda: self.click("P0_H1")))
-    self.buttons.append(tkinter.Button(top, text = "P1_H1", command = lambda: self.click("P1_H1")))
-    self.buttons.append(tkinter.Label(top, bg = "red", text = "H2", borderwidth=0.3, relief="solid"))
-    self.buttons.append(tkinter.Button(top, text = "P0_H2", command = lambda: self.click("P0_H2")))
-    self.buttons.append(tkinter.Button(top, text = "P1_H2", command = lambda: self.click("P1_H2")))
-    self.buttons.append(tkinter.Label(top, bg = "red", text = "H3", borderwidth=0.1, relief="solid"))
-    self.buttons.append(tkinter.Button(top, text = "P0_H3", command = lambda: self.click("P0_H3")))
-    self.buttons.append(tkinter.Button(top, text = "P1_H3", command = lambda: self.click("P1_H3")))
-    self.buttons.append(tkinter.Label(top, bg = "red", text = "H4", borderwidth=0.05, relief="solid"))
-    self.buttons.append(tkinter.Button(top, text = "P0_H4", command = lambda: self.click("P0_H4")))
-    self.buttons.append(tkinter.Button(top, text = "P1_H4", command = lambda: self.click("P1_H4")))
-
-    for b in self.buttons:  
-      b.pack()
-      if b['text'][0:1] == 'H':
-        b.place(bordermode=OUTSIDE, height=heroesSize, width=heroesSize, x=0, y=(int(b['text'][1:2])*heroesSize))
-      elif b['text'][0:2] == 'P0':
-        b.place(bordermode=OUTSIDE, height=heroesSize/2, width=heroesSize/2, x=heroesSize, y=(int(b['text'][4:5])*heroesSize))
-      elif b['text'][0:2] == 'P1':
-        b.place(bordermode=OUTSIDE, height=heroesSize/2, width=heroesSize/2, x=heroesSize, y=(int(b['text'][4:5])*heroesSize)+heroesSize/2)
-
-  def click(self, button):
-    print(button) #debug message
-    # self.label.config(text = selection)
 
 def showConfigWindow():
   global key_sv
@@ -121,10 +86,10 @@ def showConfigWindow():
   user_e.bind('<Return>', saveConfig)
   user_e.place(x=200, y=150, anchor="center")
   user_e.delete(0,END)
-  user_e.insert(0,user)  
-  
+  user_e.insert(0,user)
+
   canvas.grid(row=0,column=0)
-  
+
   entry.overrideredirect(True)
   center(entry)
 
@@ -171,20 +136,60 @@ def th_scheduleCall():
 def th_gameLockup():
   global update
   global me
+  global match_id
+  global buttons
+  global spell
+  global last_match_id
+  global btn_status
 
   game = watcher.get_current_game(me['id'])
 
   try:
     game['participants']
-  except:
-    print("Not in a game...")
+    game['gameId']
+  except Exception:
+    match_id = -1
   else:
-    myteam = [x for x in game['participants'] if x['summonerName'] == TMP_NAME][0]['teamId']
-    challengers = [x for x in game['participants'] if x['teamId'] != myteam]
-    for c in challengers: # x['championId'],x['spell1Id'],x['spell2Id']}
-      print(watcher.get_champion_by_id(c['championId'])) # not counted in api call rate
+    match_id = game['gameId']
+    if match_id != last_match_id:
+      myteam = [x for x in game['participants'] if x['summonerName'] == me['name']][0]['teamId']
+      challengers = [x for x in game['participants'] if x['teamId'] != myteam]
+      
+      j = 0
+      for c in challengers: # x['championId'],x['spell1Id'],x['spell2Id']}
+        buttons[j][0] = c['championId'] # watcher.get_champion_by_id() # not counted in api call rate
 
+        tmp_spell = [x for x in spell if x['id'] == c['spell1Id']][0]['iconPath']
+        tmp_spell = tmp_spell[1+tmp_spell.rindex('/'):]
+        buttons[int(j)][5] = tmp_spell
+        btn_status[int(j)*2][4] = [x for x in spell if x['id'] == c['spell1Id']][0]['cooldown']
+
+        tmp_spell = [x for x in spell if x['id'] == c['spell2Id']][0]['iconPath']
+        tmp_spell = tmp_spell[1+tmp_spell.rindex('/'):]
+        buttons[int(j)][6] = tmp_spell
+        btn_status[int(j)*2+1][4] = [x for x in spell if x['id'] == c['spell2Id']][0]['cooldown']
+
+        j += 1
   update = False
+
+def th_countdown(button):
+  global btn_status
+
+  btn_status[int(button)][2] = btn_status[int(button)][4]
+
+  while btn_status[int(button)][2] > 0 and btn_status[int(button)][0]:
+    time.sleep(1)
+    btn_status[int(button)][2]-=1
+  btn_status[int(button)][1] = threading.Thread(target=lambda: th_countdown(int(button)))
+  btn_status[int(button)][0] = False
+
+def click(button):
+  global btn_status
+  global match_id
+
+  if not bool(btn_status[int(button)][0]) and match_id > -1:
+    btn_status[int(button)][0] = True
+    btn_status[int(button)][1].start()
 
 if __name__ == "__main__":
   # key management
@@ -206,7 +211,6 @@ if __name__ == "__main__":
   global me
   try:
     me = watcher.get_summoner_by_name(summoner_name=user) # This requeset is used as a 'login', is it fails i kill the process because username or key is broken
-    print(me)
     if 'status' in me:
       if 'status_code' in me['status']:
         if int(me['status']['status_code']) >= 300:
@@ -215,21 +219,100 @@ if __name__ == "__main__":
     raise ValueError(Exception)
   else:
     # start main
-    top = tkinter.Tk()
+
+    top = Tk()
     heroesSize = int(top.winfo_screenheight()/20)
 
     th_listener = __listener__.listener()
     th_listener.start()
 
-    win = window(top)
     top.geometry(str(int(heroesSize*1.5))+"x"+str(heroesSize*5))
     top.overrideredirect(1) #Remove border
     top.resizable(False, False)
     top.attributes('-topmost', True)
 
-    # Schedule
     global update
     global th_call_isAlive
+    global match_id
+    global last_match_id
+    global buttons
+    global spell
+    global btn_status
+
+    spell = requests.get("http://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/summoner-spells.json").json()
+
+    buttons = []
+
+    tmp_btn = []
+    for i in range(10):
+      tmp_btn.append(
+        Canvas(
+          top,
+          width=int(heroesSize/2),
+          height=int(heroesSize/2),
+          border = 0,
+          highlightthickness = 0,
+          relief = "solid",
+          bg = "black"
+        )
+      )
+    
+    tmp_btn[0].bind("<Button-1>", lambda event: click(0))
+    tmp_btn[1].bind("<Button-1>", lambda event: click(1))
+    tmp_btn[2].bind("<Button-1>", lambda event: click(2))
+    tmp_btn[3].bind("<Button-1>", lambda event: click(3))
+    tmp_btn[4].bind("<Button-1>", lambda event: click(4))
+    tmp_btn[5].bind("<Button-1>", lambda event: click(5))
+    tmp_btn[6].bind("<Button-1>", lambda event: click(6))
+    tmp_btn[7].bind("<Button-1>", lambda event: click(7))
+    tmp_btn[8].bind("<Button-1>", lambda event: click(8))
+    tmp_btn[9].bind("<Button-1>", lambda event: click(9))
+
+    # started/ended - thread - timer
+    btn_status = [
+      [False, threading.Thread(target=lambda: th_countdown(int(0))), 0, -1, 0, "white"],
+      [False, threading.Thread(target=lambda: th_countdown(int(1))), 0, -1, 0, "white"],
+      [False, threading.Thread(target=lambda: th_countdown(int(2))), 0, -1, 0, "white"],
+      [False, threading.Thread(target=lambda: th_countdown(int(3))), 0, -1, 0, "white"],
+      [False, threading.Thread(target=lambda: th_countdown(int(4))), 0, -1, 0, "white"],
+      [False, threading.Thread(target=lambda: th_countdown(int(5))), 0, -1, 0, "white"],
+      [False, threading.Thread(target=lambda: th_countdown(int(6))), 0, -1, 0, "white"],
+      [False, threading.Thread(target=lambda: th_countdown(int(7))), 0, -1, 0, "white"],
+      [False, threading.Thread(target=lambda: th_countdown(int(8))), 0, -1, 0, "white"],
+      [False, threading.Thread(target=lambda: th_countdown(int(9))), 0, -1, 0, "white"],
+    ]
+
+    for i in (0,1,2,3,4):
+      buttons.append(
+        [
+          'H'+str(i),
+          Canvas(
+            top,
+            width = heroesSize,
+            height = heroesSize,
+            border = 0,
+            highlightthickness = 0,
+            relief = "solid",
+            bg = "black"
+          ),
+          tmp_btn[i*2],
+          tmp_btn[i*2+1],
+          '','',''
+        ]
+      )
+
+    i = 0
+    while i < len(buttons):
+      buttons[int(i)][1].place(x=0, y=int(i)*heroesSize)
+      buttons[int(i)][2].place(x=heroesSize, y=int(i)*heroesSize)
+      buttons[int(i)][3].place(x=heroesSize, y=int(i)*heroesSize+heroesSize/2)
+      i += 1
+
+    top.overrideredirect(True)
+
+    # Schedule
+    match_id = -1
+    last_match_id = -1
     update = True
     th_call_isAlive = True
 
@@ -242,7 +325,68 @@ if __name__ == "__main__":
         th_lockup = threading.Thread(target=th_gameLockup)
         th_lockup.start()
 
-      # TODO maybe image from data dragon
+      if last_match_id != match_id:
+        last_match_id = match_id
+        if match_id > 0:
+          i = 0
+          while i < len(buttons):
+            try:
+              response = requests.get("http://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/v1/champion-icons/"+str(buttons[i][0])+".png")
+              im = Image.open(BytesIO(response.content))
+              im = im.resize((heroesSize, heroesSize), Image.ANTIALIAS)
+              buttons[i][4] = PIL.ImageTk.PhotoImage(im)
+              buttons[int(i)][1].create_image(0, 0, image = buttons[int(i)][4], anchor = NW)
+            except Exception as e:
+              print(str(e))
+
+            try:
+              response = requests.get("http://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/data/spells/icons2d/" + str(buttons[int(i)][5]).lower())
+              im = Image.open(BytesIO(response.content))
+              im = im.resize((int(heroesSize/2), int(heroesSize/2)), Image.ANTIALIAS)
+
+              btn_status[i*2][5] = str(__color__.hexToName("#"+str(__color__.colorInvert(__color__.getDominant(im))))) # color set
+
+              buttons[int(i)][5] = PIL.ImageTk.PhotoImage(im)
+              buttons[int(i)][2].create_image(0, 0, image = buttons[int(i)][5], anchor = NW)
+            except Exception as e:
+              print(str(e))
+
+            try:
+              response = requests.get("http://raw.communitydragon.org/latest/plugins/rcp-be-lol-game-data/global/default/data/spells/icons2d/" + str(buttons[int(i)][6]).lower())
+              im = Image.open(BytesIO(response.content))
+              im = im.resize((int(heroesSize/2), int(heroesSize/2)), Image.ANTIALIAS)
+
+              btn_status[i*2+1][5] = str(__color__.hexToName("#"+str(__color__.colorInvert(__color__.getDominant(im))))) # color set
+              
+              buttons[int(i)][6] = PIL.ImageTk.PhotoImage(im)
+              buttons[int(i)][3].create_image(0, 0, image = buttons[int(i)][6], anchor = NW)
+            except Exception as e:
+              print(str(e))
+
+            i += 1
+        else:
+          print(match_id) 
+
+      i = 0
+      while i < len(buttons):
+        try:
+          # delete previous number
+          if btn_status[i*2][3] > -1:
+            buttons[int(i)][2].delete(btn_status[i*2][3])
+            btn_status[i*2][3] = -1
+
+          # delete previous number
+          if btn_status[i*2+1][3] > -1:
+            buttons[int(i)][3].delete(btn_status[i*2+1][3])
+            btn_status[i*2+1][3] = -1
+
+          if btn_status[i*2][2] > 0 and btn_status[i*2][0]:
+            btn_status[i*2][3] = buttons[int(i)][2].create_text((int(heroesSize/4),int(heroesSize/4)),fill=btn_status[i*2][5],font="Arial 12 bold", text=btn_status[i*2][2])
+          if btn_status[i*2+1][2] > 0 and btn_status[i*2+1][0]:
+            btn_status[i*2+1][3] = buttons[int(i)][3].create_text((int(heroesSize/4),int(heroesSize/4)),fill=btn_status[i*2+1][5],font="Arial 12 bold", text=btn_status[i*2+1][2])
+        except Exception as e:
+          print(e)
+        i += 1
 
       # window update
       top.update_idletasks()
@@ -253,15 +397,17 @@ if __name__ == "__main__":
       else:
         top.withdraw()
       if not th_listener.isAlive:
-        break    
+        break
+
+  for b in btn_status:
+    b[2] = 0
+    b[0] = FALSE
+    if b[1].is_alive():
+      b[1].join()
 
   th_lockup.join()
   th_call_isAlive = False
   th_call.join()
   top.destroy()
   top.quit()
-  try:
-    sys.exit()
-  except Exception:
-    print("DIOCANE")
-    print(Exception)
+  sys.exit()
