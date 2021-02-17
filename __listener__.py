@@ -24,8 +24,8 @@ class listener(threading.Thread):
 
 def on_release(key, self):
   if hasattr(key, 'char'):
-    if key.char == '\x0b':
+    if key.char == '\x0b': # K
       self.isAlive = False
       return False
-    if key.char == '\x02':
+    if key.char == '\x02': # B
       listener.isShowed = not listener.isShowed
