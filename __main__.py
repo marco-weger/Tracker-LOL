@@ -18,10 +18,12 @@ from PIL import ImageTk, Image
 import time
 import threading
 import requests
+import io
 from io import BytesIO
 import __color__
 
-heroesSize = 20
+heroesSize = 10
+VERSION = 0
 
 def showConfigWindow():
   global key_sv
@@ -104,12 +106,12 @@ def saveConfig(event):
   global entry
 
   key = key_sv.get()
-  text_file = open(os.path.join(os.path.dirname(__file__), 'key.config'), "w")
+  text_file = io.open(os.path.join(os.path.dirname(__file__), 'key.config'), "w")
   text_file.write(key)
   text_file.close()
 
   user = user_sv.get()
-  text_file = open(os.path.join(os.path.dirname(__file__), 'user.config'), "w")
+  text_file = io.open(os.path.join(os.path.dirname(__file__), 'user.config'), "w")
   text_file.write(user)
   text_file.close()
 
@@ -143,6 +145,7 @@ def th_gameLockup():
   global btn_status
 
   game = watcher.get_current_game(me['id'])
+  # print(game)
 
   try:
     game['participants']
@@ -194,13 +197,13 @@ def click(button):
 if __name__ == "__main__":
   # key management
   try:
-    fileObject = open(os.path.join(os.path.dirname(__file__), 'key.config'), "r")
+    fileObject = io.open(os.path.join(os.path.dirname(__file__), 'key.config'), "r")
     key = fileObject.read()
   except:
     key = 'API key'
   # user management
   try:
-    fileObject = open(os.path.join(os.path.dirname(__file__), 'user.config'), "r")
+    fileObject = io.open(os.path.join(os.path.dirname(__file__), 'user.config'), "r")
     user = fileObject.read()
   except:
     user = 'Username'
@@ -402,8 +405,8 @@ if __name__ == "__main__":
   for b in btn_status:
     b[2] = 0
     b[0] = FALSE
-    if b[1].is_alive():
-      b[1].join()
+    # if b[1].is_alive():
+    #   b[1].join()
 
   th_lockup.join()
   th_call_isAlive = False
